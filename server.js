@@ -118,6 +118,7 @@ app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// 🔹 Internal self-ping (already existing)
 const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
 setInterval(async () => {
   try {
@@ -127,6 +128,19 @@ setInterval(async () => {
     console.error("❌ Self-ping failed:", err.message);
   }
 }, 240000);
+
+// 🔹 External keep-alive ping to stay awake on free tier
+import https from "https";
+
+const EXTERNAL_SELF_URL = "https://api-server-2-dkuk.onrender.com";
+
+setInterval(() => {
+  https.get(`${EXTERNAL_SELF_URL}/keep-alive`, (res) => {
+    console.log("🔄 External self-ping:", res.statusCode);
+  }).on("error", (err) => {
+    console.error("❌ External self-ping failed:", err.message);
+  });
+}, 5 * 60 * 1000); // every 5 minutes
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
