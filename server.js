@@ -5,6 +5,7 @@ import fetch from "node-fetch";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SELF_URL = "https://api-server-2-dkuk.onrender.com"; // your deployed link
 
 // Allow all origins (public access)
 app.use(cors());
@@ -12,6 +13,11 @@ app.use(cors());
 // Root endpoint
 app.get("/", (req, res) => {
   res.json({ message: "✅ Binance Relay API Server is running (no limit)" });
+});
+
+// ✅ Keep-alive ping endpoint (for external cron jobs)
+app.get("/ping", (req, res) => {
+  res.status(200).send("pong");
 });
 
 // List of Binance endpoints to relay
@@ -44,6 +50,14 @@ app.use("/api", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch from Binance" });
   }
 });
+
+// Optional: Self-ping every 5 minutes (only if not on Render free tier)
+// This helps if hosted elsewhere like VPS
+// setInterval(() => {
+//   fetch(`${SELF_URL}/ping`)
+//     .then(() => console.log("💓 Self-ping success"))
+//     .catch(err => console.error("❌ Self-ping failed:", err.message));
+// }, 5 * 60 * 1000);
 
 // Start server
 app.listen(PORT, () => {
