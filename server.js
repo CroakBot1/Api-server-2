@@ -2,15 +2,14 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
-import { AbortController } from "abort-controller";
-import rateLimit from "express-rate-limit"; // ✅ new
+import rateLimit from "express-rate-limit";
 
 const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// 🔹 Bases (Binance + your fallbacks)
+// 🔹 Bases (Binance + fallbacks)
 const BASES = [
   "https://api.binance.com",
   "https://croak-express-gateway-henna.vercel.app",
@@ -19,14 +18,13 @@ const BASES = [
 ];
 
 // 🔹 Rate limiter (per IP)
-// Example: max 60 requests per minute per IP (tweak as needed)
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,  // 1 minute window
-  max: 60,              // limit each IP to 60 requests per minute
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,             // max 60 requests per IP per window
   message: { error: "Too many requests, slow down." }
 });
 
-// Apply limiter only to API routes (not keep-alive)
+// Apply limiter to API routes
 app.use("/api", apiLimiter);
 app.use("/prices", apiLimiter);
 
@@ -35,26 +33,29 @@ async function safeJson(res) {
   const text = await res.text();
   try {
     return JSON.parse(text);
-  } catch (err) {
-    console.error("❌ Not valid JSON:", text.slice(0, 200));
+  } catch {
+    console.error("❌ Invalid JSON:", text.slice(0, 200));
     throw new Error("Invalid JSON response");
   }
 }
 
-// 🔹 Timed fetch (with AbortController)
+// 🔹 Timed fetch with AbortController (Node 25+ built-in)
 async function timedFetch(url, ms = 8000) {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), ms);
+  const timeoutId = setTimeout(() => controller.abort(), ms);
   try {
     return await fetch(url, { signal: controller.signal });
   } finally {
-    clearTimeout(id);
+    clearTimeout(timeoutId);
   }
 }
 
+// 🔹 Cache current working base
+let currentBase = null;
+
 // 🔹 Detect first working base
 async function detectBase() {
-  for (let base of BASES) {
+  for (const base of BASES) {
     try {
       const res = await timedFetch(`${base}/api/v3/ping`, 5000);
       if (res.ok) {
@@ -62,15 +63,13 @@ async function detectBase() {
         return base;
       }
     } catch (err) {
-      console.error("❌ Failed base:", base, err.message);
+      console.warn("❌ Base failed:", base, err.message);
     }
   }
   throw new Error("No working base found.");
 }
 
-// 🔹 Cache current base (auto-rotate if fail)
-let currentBase = null;
-
+// 🔹 Get base (with caching)
 async function getBase() {
   if (!currentBase) {
     currentBase = await detectBase();
@@ -78,45 +77,42 @@ async function getBase() {
   return currentBase;
 }
 
-// 🔹 Generic proxy handler for Binance REST API
+// 🔹 Generic proxy helper with automatic base rotation
+async function proxyRequest(path, ms = 8000) {
+  let base = await getBase();
+  let url = base + path;
+
+  try {
+    const res = await timedFetch(url, ms);
+    return await safeJson(res);
+  } catch (err) {
+    console.warn("⚠️ Base failed, rotating...");
+    currentBase = null;           // force rotation
+    base = await getBase();
+    url = base + path;
+    const res = await timedFetch(url, ms);
+    return await safeJson(res);
+  }
+}
+
+// 🔹 API proxy route
 app.use("/api/v3/*", async (req, res) => {
   try {
-    let base = await getBase();
-    let targetUrl = base + req.originalUrl;
-
-    let resp;
-    try {
-      resp = await timedFetch(targetUrl, 8000);
-    } catch (err) {
-      console.warn("⚠️ Base failed, rotating...");
-      currentBase = null;
-      base = await getBase();
-      targetUrl = base + req.originalUrl;
-      resp = await timedFetch(targetUrl, 8000);
-    }
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error(`❌ Upstream error [${resp.status}]:`, errText.slice(0, 200));
-      return res.status(resp.status).send(errText);
-    }
-
-    const data = await safeJson(resp);
+    const data = await proxyRequest(req.originalUrl);
     res.json(data);
   } catch (err) {
-    console.error("Server error:", err.message);
+    console.error("❌ Proxy error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 🔹 Shortcut for /prices
+// 🔹 Shortcut /prices route
 app.get("/prices", async (req, res) => {
   try {
-    let base = await getBase();
-    const resp = await timedFetch(`${base}/api/v3/ticker/price`, 8000);
-    const data = await safeJson(resp);
+    const data = await proxyRequest("/api/v3/ticker/price");
     res.json(data);
   } catch (err) {
+    console.error("❌ /prices error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -147,6 +143,7 @@ setInterval(async () => {
   }
 }, 240000);
 
+// 🔹 Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
