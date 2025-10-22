@@ -241,7 +241,7 @@ app.get("/keep-alive", (req, res) => res.json({ status: "ok", ts: new Date().toI
 /* ---------- Self-ping ---------- */
 const SELF_URL =
   process.env.SELF_URL ||
-  "https://api-server-rg0h.onrender.com"; // ✅ force live Render URL by default
+  "https://api-server-2-dkuk.onrender.com"; // ✅ force live Render URL by default
 
 setInterval(async () => {
   try {
