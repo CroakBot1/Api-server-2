@@ -6,15 +6,15 @@ import fetch from "node-fetch";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Allow CORS (para ma-access sa front-end)
+// Allow all origins (public access)
 app.use(cors());
 
 // Root endpoint
 app.get("/", (req, res) => {
-  res.json({ message: "✅ Binance Relay API Server is running" });
+  res.json({ message: "✅ Binance Relay API Server is running (no limit)" });
 });
 
-// Relay endpoints
+// List of Binance endpoints to relay
 const relayEndpoints = [
   "/api/v3/ticker/price",
   "/api/v3/exchangeInfo",
@@ -23,16 +23,22 @@ const relayEndpoints = [
   "/api/v3/ping"
 ];
 
-// Proxy handler
+// Relay handler — all requests under /api/*
 app.use("/api", async (req, res) => {
   try {
     const targetUrl = `https://api.binance.com${req.originalUrl}`;
     console.log(`🔁 Relaying → ${targetUrl}`);
 
-    const response = await fetch(targetUrl);
-    const data = await response.json();
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers: { "Content-Type": "application/json" }
+    });
 
-    res.json(data);
+    const data = await response.text();
+
+    // Forward Binance headers if needed
+    res.setHeader("Content-Type", "application/json");
+    res.status(response.status).send(data);
   } catch (err) {
     console.error("❌ Relay error:", err.message);
     res.status(500).json({ error: "Failed to fetch from Binance" });
@@ -41,5 +47,5 @@ app.use("/api", async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} (no limit mode)`);
 });
