@@ -1,4 +1,3 @@
-// server.js
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
@@ -9,7 +8,6 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// 🔹 Bases (Binance + fallbacks)
 const BASES = [
   "https://api.binance.com",
   "https://croak-express-gateway-henna.vercel.app",
@@ -17,18 +15,15 @@ const BASES = [
   "https://croak-pwa.vercel.app"
 ];
 
-// 🔹 Rate limiter (per IP)
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 60,             // max 60 requests per IP per window
+  windowMs: 60 * 1000,
+  max: 60,
   message: { error: "Too many requests, slow down." }
 });
 
-// Apply limiter to API routes
 app.use("/api", apiLimiter);
 app.use("/prices", apiLimiter);
 
-// 🔹 Helper: safe JSON parse
 async function safeJson(res) {
   const text = await res.text();
   try {
@@ -39,21 +34,18 @@ async function safeJson(res) {
   }
 }
 
-// 🔹 Timed fetch with AbortController (Node 25+ built-in)
 async function timedFetch(url, ms = 8000) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
+  const id = setTimeout(() => controller.abort(), ms);
   try {
     return await fetch(url, { signal: controller.signal });
   } finally {
-    clearTimeout(timeoutId);
+    clearTimeout(id);
   }
 }
 
-// 🔹 Cache current working base
 let currentBase = null;
 
-// 🔹 Detect first working base
 async function detectBase() {
   for (const base of BASES) {
     try {
@@ -69,7 +61,6 @@ async function detectBase() {
   throw new Error("No working base found.");
 }
 
-// 🔹 Get base (with caching)
 async function getBase() {
   if (!currentBase) {
     currentBase = await detectBase();
@@ -77,7 +68,6 @@ async function getBase() {
   return currentBase;
 }
 
-// 🔹 Generic proxy helper with automatic base rotation
 async function proxyRequest(path, ms = 8000) {
   let base = await getBase();
   let url = base + path;
@@ -85,9 +75,9 @@ async function proxyRequest(path, ms = 8000) {
   try {
     const res = await timedFetch(url, ms);
     return await safeJson(res);
-  } catch (err) {
+  } catch {
     console.warn("⚠️ Base failed, rotating...");
-    currentBase = null;           // force rotation
+    currentBase = null;
     base = await getBase();
     url = base + path;
     const res = await timedFetch(url, ms);
@@ -95,7 +85,6 @@ async function proxyRequest(path, ms = 8000) {
   }
 }
 
-// 🔹 API proxy route
 app.use("/api/v3/*", async (req, res) => {
   try {
     const data = await proxyRequest(req.originalUrl);
@@ -106,7 +95,6 @@ app.use("/api/v3/*", async (req, res) => {
   }
 });
 
-// 🔹 Shortcut /prices route
 app.get("/prices", async (req, res) => {
   try {
     const data = await proxyRequest("/api/v3/ticker/price");
@@ -117,7 +105,6 @@ app.get("/prices", async (req, res) => {
   }
 });
 
-// 🔹 Root route
 app.get("/", (req, res) => {
   res.json({
     message: "API Proxy Server Running",
@@ -127,12 +114,10 @@ app.get("/", (req, res) => {
   });
 });
 
-// 🔹 Keep-alive
 app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 🔹 Self-ping every 4 minutes
 const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
 setInterval(async () => {
   try {
@@ -143,7 +128,6 @@ setInterval(async () => {
   }
 }, 240000);
 
-// 🔹 Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
