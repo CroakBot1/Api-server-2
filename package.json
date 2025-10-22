@@ -1,31 +1,32 @@
 {
   "name": "api-proxy-server",
   "version": "1.0.0",
-  "description": "Binance proxy API with failover and keep-alive",
-  "main": "server.js",
+  "description": "Express-based API proxy server without rate limiting.",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "node-fetch": "^2.6.7"
+    "express": "^4.21.1",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
   },
   "engines": {
-    "node": ">=18.x"
+    "node": ">=18.0.0"
   },
   "keywords": [
-    "binance",
-    "api",
-    "proxy",
     "express",
-    "keep-alive"
+    "proxy",
+    "api",
+    "binance",
+    "server",
+    "node"
   ],
-  "author": "",
+  "author": "Your Name",
   "license": "MIT"
 }
