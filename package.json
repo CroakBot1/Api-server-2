@@ -1,7 +1,7 @@
 {
-  "name": "binance-proxy-server",
+  "name": "binance-relay-server",
   "version": "1.0.0",
-  "description": "Lightweight Express proxy server for Binance API with no rate limits.",
+  "description": "Simple Express proxy server for Binance API relay",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -10,23 +10,13 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.21.1",
+    "express": "^4.18.2",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
   },
   "engines": {
-    "node": ">=18.0.0"
-  },
-  "keywords": [
-    "express",
-    "proxy",
-    "binance",
-    "api",
-    "server",
-    "crypto"
-  ],
-  "author": "Your Name",
-  "license": "MIT"
+    "node": ">=18"
+  }
 }
