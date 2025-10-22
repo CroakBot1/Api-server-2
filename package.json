@@ -1,36 +1,31 @@
 {
   "name": "api-proxy-server",
   "version": "1.0.0",
-  "description": "High-performance API proxy with caching, retry, queue, and dedupe system for Binance endpoints.",
-  "type": "module",
+  "description": "Binance proxy API with failover and keep-alive",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "abort-controller": "^3.0.0",
     "cors": "^2.8.5",
-    "express": "^4.21.1",
-    "express-rate-limit": "^7.4.0",
-    "node-fetch": "^3.3.2"
+    "express": "^4.19.2",
+    "node-fetch": "^2.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.x"
   },
   "keywords": [
-    "express",
-    "proxy",
-    "cache",
     "binance",
     "api",
-    "queue",
-    "retry",
-    "render"
+    "proxy",
+    "express",
+    "keep-alive"
   ],
-  "author": "Your Name",
+  "author": "",
   "license": "MIT"
 }
