@@ -1,9 +1,8 @@
-// server.js
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
 import { AbortController } from "abort-controller";
-import rateLimit from "express-rate-limit"; // ✅ new
+import rateLimit from "express-rate-limit";
 
 const app = express();
 app.use(cors());
@@ -19,14 +18,12 @@ const BASES = [
 ];
 
 // 🔹 Rate limiter (per IP)
-// Example: max 60 requests per minute per IP (tweak as needed)
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,  // 1 minute window
-  max: 60,              // limit each IP to 60 requests per minute
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,
   message: { error: "Too many requests, slow down." }
 });
 
-// Apply limiter only to API routes (not keep-alive)
 app.use("/api", apiLimiter);
 app.use("/prices", apiLimiter);
 
@@ -68,17 +65,14 @@ async function detectBase() {
   throw new Error("No working base found.");
 }
 
-// 🔹 Cache current base (auto-rotate if fail)
+// 🔹 Cache current base
 let currentBase = null;
-
 async function getBase() {
-  if (!currentBase) {
-    currentBase = await detectBase();
-  }
+  if (!currentBase) currentBase = await detectBase();
   return currentBase;
 }
 
-// 🔹 Generic proxy handler for Binance REST API
+// 🔹 Proxy handler for Binance REST API
 app.use("/api/v3/*", async (req, res) => {
   try {
     let base = await getBase();
@@ -131,21 +125,23 @@ app.get("/", (req, res) => {
   });
 });
 
-// 🔹 Keep-alive
+// 🔹 Keep-alive endpoint
 app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // 🔹 Self-ping every 4 minutes
-const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
+// ✅ Now points to your deployed Render URL
+const SELF_URL = "https://api-server-2-dkuk.onrender.com";
+
 setInterval(async () => {
   try {
     const res = await fetch(`${SELF_URL}/keep-alive`);
-    console.log("🔄 Self-ping:", res.status);
+    console.log("🔄 Keep-alive ping:", res.status, new Date().toISOString());
   } catch (err) {
-    console.error("❌ Self-ping failed:", err.message);
+    console.error("❌ Keep-alive failed:", err.message);
   }
-}, 240000);
+}, 240000); // every 4 minutes
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
