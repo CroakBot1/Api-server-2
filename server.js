@@ -2,7 +2,7 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
-import rateLimit from "express-rate-limit"; // ✅ no more abort-controller import
+import rateLimit from "express-rate-limit";
 
 const app = express();
 app.use(cors());
@@ -19,10 +19,11 @@ const BASES = [
 
 // 🔹 Rate limiter
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 min
+  windowMs: 60 * 1000, // 1 minute
   max: 60,
   message: { error: "Too many requests, slow down." }
 });
+
 app.use("/api", apiLimiter);
 app.use("/prices", apiLimiter);
 
@@ -38,7 +39,7 @@ async function safeJson(res) {
 }
 
 // 🔹 Timed fetch (built-in AbortController)
-async function timedFetch(url, ms = 8000) {
+async function timedFetch(url, ms = 10000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ms);
   try {
@@ -52,7 +53,7 @@ async function timedFetch(url, ms = 8000) {
 async function detectBase() {
   for (let base of BASES) {
     try {
-      const res = await timedFetch(`${base}/api/v3/ping`, 5000);
+      const res = await timedFetch(`${base}/api/v3/ping`, 10000);
       if (res.ok) {
         console.log("✅ Using base:", base);
         return base;
@@ -61,7 +62,8 @@ async function detectBase() {
       console.error("❌ Failed base:", base, err.message);
     }
   }
-  throw new Error("No working base found.");
+  console.warn("⚠️ No working base found, defaulting to Binance...");
+  return "https://api.binance.com"; // fallback default
 }
 
 // 🔹 Cache current base
@@ -71,7 +73,7 @@ async function getBase() {
   return currentBase;
 }
 
-// 🔹 Proxy for Binance API
+// 🔹 Generic proxy handler
 app.use("/api/v3/*", async (req, res) => {
   try {
     let base = await getBase();
@@ -124,12 +126,12 @@ app.get("/", (req, res) => {
   });
 });
 
-// 🔹 Keep-alive
+// 🔹 Keep-alive endpoint
 app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 🔹 Self-ping every 4 minutes (Render URL)
+// 🔹 Self-ping every 4 minutes
 const SELF_URL = "https://api-server-2-dkuk.onrender.com";
 
 setInterval(async () => {
@@ -139,7 +141,7 @@ setInterval(async () => {
   } catch (err) {
     console.error("❌ Keep-alive failed:", err.message);
   }
-}, 240000); // 4 mins
+}, 240000); // 4 minutes
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
