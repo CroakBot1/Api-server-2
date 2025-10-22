@@ -1,19 +1,14 @@
 {
   "name": "binance-proxy-server",
   "version": "1.0.0",
-  "description": "A proxy server for Binance API with fallback bases, rate limiting, and self-ping",
+  "description": "Binance API proxy with fallback bases, rate limiting, and self-ping",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": [
-    "binance",
-    "proxy",
-    "express",
-    "api"
-  ],
+  "keywords": ["binance", "proxy", "express", "api"],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
