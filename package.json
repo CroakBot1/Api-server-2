@@ -1,7 +1,7 @@
 {
-  "name": "api-proxy-server",
+  "name": "binance-proxy-server",
   "version": "1.0.0",
-  "description": "Express-based API proxy server without rate limiting.",
+  "description": "Lightweight Express proxy server for Binance API with no rate limits.",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -22,10 +22,10 @@
   "keywords": [
     "express",
     "proxy",
-    "api",
     "binance",
+    "api",
     "server",
-    "node"
+    "crypto"
   ],
   "author": "Your Name",
   "license": "MIT"
