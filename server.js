@@ -8,25 +8,27 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-const BASES = [
-  "https://api.binance.com",
-  "https://croak-express-gateway-henna.vercel.app",
-  "https://croak-bot-proxy-three.vercel.app",
-  "https://croak-pwa.vercel.app"
-];
+// ✅ Only use official Binance endpoint
+const BASES = ["https://api.binance.com"];
 
-// ✅ No rate limit applied
-
+// Helper: safe JSON parsing with clear logs
 async function safeJson(res) {
   const text = await res.text();
+
+  if (!res.ok) {
+    console.error(`⚠️ Upstream HTTP ${res.status}:`, text.slice(0, 200));
+    throw new Error(`Upstream ${res.status}`);
+  }
+
   try {
     return JSON.parse(text);
   } catch {
-    console.error("❌ Invalid JSON:", text.slice(0, 200));
-    throw new Error("Invalid JSON response");
+    console.error("❌ Invalid JSON from upstream:", text.slice(0, 200));
+    throw new Error("Invalid JSON response from upstream");
   }
 }
 
+// Helper: fetch with timeout
 async function timedFetch(url, ms = 8000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
@@ -37,47 +39,17 @@ async function timedFetch(url, ms = 8000) {
   }
 }
 
-let currentBase = null;
-
-async function detectBase() {
-  for (const base of BASES) {
-    try {
-      const res = await timedFetch(`${base}/api/v3/ping`, 5000);
-      if (res.ok) {
-        console.log("✅ Using base:", base);
-        return base;
-      }
-    } catch (err) {
-      console.warn("❌ Base failed:", base, err.message);
-    }
-  }
-  throw new Error("No working base found.");
-}
-
-async function getBase() {
-  if (!currentBase) {
-    currentBase = await detectBase();
-  }
-  return currentBase;
-}
-
+// Main proxy handler
 async function proxyRequest(path, ms = 8000) {
-  let base = await getBase();
-  let url = base + path;
+  const base = BASES[0];
+  const url = base + path;
+  console.log(`🔁 Proxying → ${url}`);
 
-  try {
-    const res = await timedFetch(url, ms);
-    return await safeJson(res);
-  } catch {
-    console.warn("⚠️ Base failed, rotating...");
-    currentBase = null;
-    base = await getBase();
-    url = base + path;
-    const res = await timedFetch(url, ms);
-    return await safeJson(res);
-  }
+  const res = await timedFetch(url, ms);
+  return await safeJson(res);
 }
 
+// ✅ Proxy all Binance API routes
 app.use("/api/v3/*", async (req, res) => {
   try {
     const data = await proxyRequest(req.originalUrl);
@@ -88,6 +60,7 @@ app.use("/api/v3/*", async (req, res) => {
   }
 });
 
+// ✅ Simple price endpoint
 app.get("/prices", async (req, res) => {
   try {
     const data = await proxyRequest("/api/v3/ticker/price");
@@ -98,40 +71,34 @@ app.get("/prices", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
-  res.json({
-    message: "API Proxy Server Running",
-    keepalive: "/keep-alive",
-    endpoints: ["/prices", "/api/v3/..."],
-    limits: "No rate limit applied"
-  });
-});
-
+// ✅ Health check
 app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 🔹 Internal keep-alive (to prevent sleep)
-const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
-setInterval(async () => {
+// ✅ Debug route — helps diagnose upstream issues
+app.get("/debug", async (req, res) => {
   try {
-    const res = await fetch(`${SELF_URL}/keep-alive`);
-    console.log("🔄 Self-ping:", res.status);
+    const resPing = await timedFetch("https://api.binance.com/api/v3/ping", 5000);
+    res.json({
+      status: resPing.ok ? "ok" : "failed",
+      binanceStatus: resPing.status,
+      region: process.env.RENDER_REGION || "local"
+    });
   } catch (err) {
-    console.error("❌ Self-ping failed:", err.message);
+    res.status(500).json({ error: "Failed to reach Binance", message: err.message });
   }
-}, 240000);
+});
 
-// 🔹 External keep-alive ping (for Render/Vercel free tier)
-const EXTERNAL_SELF_URL = "https://api-server-2-dkuk.onrender.com";
-
+// 🔹 External keep-alive (optional)
+const SELF_URL = process.env.SELF_URL || "https://api-server-2-dkuk.onrender.com";
 setInterval(() => {
-  https.get(`${EXTERNAL_SELF_URL}/keep-alive`, (res) => {
-    console.log("🔄 External self-ping:", res.statusCode);
-  }).on("error", (err) => {
-    console.error("❌ External self-ping failed:", err.message);
+  https.get(`${SELF_URL}/keep-alive`, res => {
+    console.log("🔄 Keep-alive:", res.statusCode);
+  }).on("error", err => {
+    console.error("❌ Keep-alive failed:", err.message);
   });
-}, 5 * 60 * 1000); // every 5 minutes
+}, 5 * 60 * 1000); // every 5 min
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
