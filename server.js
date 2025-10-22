@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
-import { AbortController } from "abort-controller";
 import rateLimit from "express-rate-limit";
 
 const app = express();
@@ -9,7 +8,7 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
-// 🔹 Bases (Binance + your fallbacks)
+// 🔹 Binance bases + fallbacks
 const BASES = [
   "https://api.binance.com",
   "https://croak-express-gateway-henna.vercel.app",
@@ -17,9 +16,9 @@ const BASES = [
   "https://croak-pwa.vercel.app"
 ];
 
-// 🔹 Rate limiter (per IP)
+// 🔹 Rate limiter
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   max: 60,
   message: { error: "Too many requests, slow down." }
 });
@@ -27,7 +26,7 @@ const apiLimiter = rateLimit({
 app.use("/api", apiLimiter);
 app.use("/prices", apiLimiter);
 
-// 🔹 Helper: safe JSON parse
+// 🔹 Safe JSON parse
 async function safeJson(res) {
   const text = await res.text();
   try {
@@ -38,7 +37,7 @@ async function safeJson(res) {
   }
 }
 
-// 🔹 Timed fetch (with AbortController)
+// 🔹 Timed fetch with AbortController (built-in in Node 18+)
 async function timedFetch(url, ms = 8000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
@@ -72,7 +71,7 @@ async function getBase() {
   return currentBase;
 }
 
-// 🔹 Proxy handler for Binance REST API
+// 🔹 Generic proxy handler
 app.use("/api/v3/*", async (req, res) => {
   try {
     let base = await getBase();
@@ -81,7 +80,7 @@ app.use("/api/v3/*", async (req, res) => {
     let resp;
     try {
       resp = await timedFetch(targetUrl, 8000);
-    } catch (err) {
+    } catch {
       console.warn("⚠️ Base failed, rotating...");
       currentBase = null;
       base = await getBase();
@@ -130,8 +129,7 @@ app.get("/keep-alive", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 🔹 Self-ping every 4 minutes
-// ✅ Now points to your deployed Render URL
+// 🔹 Self-ping every 4 minutes (Render URL)
 const SELF_URL = "https://api-server-2-dkuk.onrender.com";
 
 setInterval(async () => {
