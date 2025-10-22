@@ -1,7 +1,7 @@
 {
   "name": "binance-relay-server",
   "version": "1.0.0",
-  "description": "Simple Express proxy server for Binance API relay",
+  "description": "Open Binance API relay proxy server (no limit)",
   "main": "server.js",
   "type": "module",
   "scripts": {
