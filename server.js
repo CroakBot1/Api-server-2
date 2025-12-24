@@ -6,36 +6,41 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const TV_IP = "192.168.1.50"; // ILISI sa IP sa imong TV
+// ILISI ang IP sa imong Android TV
+const TV_IP = "192.168.1.50";
 
+// Function to execute ADB command
 function adb(cmd, res) {
   exec(`adb connect ${TV_IP} && ${cmd}`, (err) => {
-    if (err) return res.status(500).send("Failed");
+    if (err) return res.status(500).send("Command failed");
     res.send("OK");
   });
 }
 
-// BASIC KEYS
+// Send key command
 app.post("/key", (req, res) => {
-  adb(`adb shell input keyevent ${req.body.code}`, res);
+  const { code } = req.body;
+  adb(`adb shell input keyevent ${code}`, res);
 });
 
-// TEXT INPUT
+// Send text input
 app.post("/text", (req, res) => {
-  adb(`adb shell input text "${req.body.text}"`, res);
+  const { text } = req.body;
+  adb(`adb shell input text "${text}"`, res);
 });
 
-// APP LAUNCH
+// Launch app
 app.post("/app", (req, res) => {
-  adb(`adb shell monkey -p ${req.body.pkg} -c android.intent.category.LAUNCHER 1`, res);
+  const { pkg } = req.body;
+  adb(`adb shell monkey -p ${pkg} -c android.intent.category.LAUNCHER 1`, res);
 });
 
-// MOUSE / TOUCH
+// Tap coordinates (optional)
 app.post("/tap", (req, res) => {
   const { x, y } = req.body;
   adb(`adb shell input tap ${x} ${y}`, res);
 });
 
-app.listen(3000, () => {
+app.listen(process.env.PORT || 3000, () => {
   console.log("Universal Remote Backend running");
 });
