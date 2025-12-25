@@ -1,7 +1,7 @@
 {
   "name": "smart-tv-universal-remote",
-  "version": "1.1.0",
-  "description": "Universal Smart TV Remote Control with auto-discovery using Node.js + HTML",
+  "version": "1.2.0",
+  "description": "Universal Smart TV Remote Control using HTML + Node.js backend (manual TV IP)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,7 +11,6 @@
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "node-ssdp": "^4.0.0"
+    "express": "^4.19.2"
   }
 }
