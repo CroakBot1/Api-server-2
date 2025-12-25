@@ -1,44 +1,38 @@
 const express = require("express");
 const { exec } = require("child_process");
 const cors = require("cors");
-const { Client } = require("node-ssdp");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-let TV_IP = null; // Will be auto-discovered
+// Manual TV IP input (set dynamically via frontend)
+let TV_IP = null;
 
-// SSDP Client
-const client = new Client();
-client.on("response", (headers, statusCode, rinfo) => {
-  if (rinfo.address) {
-    TV_IP = rinfo.address; // save first discovered TV IP
-    console.log("Discovered TV:", TV_IP);
-  }
+// Set TV IP from frontend
+app.post("/set-tv-ip", (req, res) => {
+  const { ip } = req.body;
+  if (!ip) return res.status(400).send("IP required");
+  TV_IP = ip;
+  res.send("TV IP set to " + TV_IP);
 });
 
-// Scan for TVs every 10 seconds
-setInterval(() => {
-  client.search("urn:dial-multiscreen-org:service:dial:1"); // Common Android TV SSDP service
-}, 10000);
-
-// Helper function to execute ADB commands
+// Helper function to run ADB command
 function adb(cmd, res) {
-  if (!TV_IP) return res.status(500).send("TV not discovered yet");
+  if (!TV_IP) return res.status(500).send("TV IP not set yet");
   exec(`adb connect ${TV_IP} && ${cmd}`, (err) => {
     if (err) return res.status(500).send("Command failed");
     res.send("OK");
   });
 }
 
-// Key event
+// Send key command
 app.post("/key", (req, res) => {
   const { code } = req.body;
   adb(`adb shell input keyevent ${code}`, res);
 });
 
-// Text input
+// Send text input
 app.post("/text", (req, res) => {
   const { text } = req.body;
   adb(`adb shell input text "${text}"`, res);
@@ -56,12 +50,6 @@ app.post("/tap", (req, res) => {
   adb(`adb shell input tap ${x} ${y}`, res);
 });
 
-// Get discovered TV IP
-app.get("/discover", (req, res) => {
-  if (!TV_IP) return res.status(404).send("No TV discovered yet");
-  res.send({ ip: TV_IP });
-});
-
 app.listen(process.env.PORT || 3000, () => {
-  console.log("Universal Remote Backend running with auto-discovery");
+  console.log("Universal Remote Backend running");
 });
